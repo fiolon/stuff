@@ -1,10 +1,8 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { useSession } from "next-auth/react";
 import UserModal from "../components/modal/UserModal";
-import SignIn from "../signIn/page";
+import middleware from "@/middleware";
 
-// Define the User interface
 interface User {
   id: number;
   user_id: string;
@@ -14,32 +12,40 @@ interface User {
   created_at: string;
   role: string;
   gender: string;
+  phone_number?: string;
+  country?: string;
+  province?: string;
+  address?: string;
 }
 
-// UsersPage component
-const UsersPage = () => {
-  const { data: session, status } = useSession();
-  const isAuthenticated = status === "authenticated";
-
-  const [users, setUsers] = useState<User[]>([]);
+export default function ClientPage() {
   const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<User[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [sortCriteria, setSortCriteria] = useState<"name" | "role">("name");
   const [searchQuery, setSearchQuery] = useState<string>("");
-
   const modalRef = useRef<HTMLDialogElement>(null);
+  const role = "CLIENT";
 
   useEffect(() => {
     async function fetchUsers() {
       try {
-        const response = await fetch("/api/CRUD/getUsers");
+        const response = await fetch(`/api/CRUD/getUserWithRole`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ role: `${role}` }), // replace "desired_role" with the role you want to fetch
+        });
         if (!response.ok) {
-          throw new Error("Failed to fetch users");
+          throw new Error("Error fetching users");
         }
         const data = await response.json();
         setUsers(data);
       } catch (error) {
         console.error("Error fetching users:", error);
+        setError(error.message);
       } finally {
         setLoading(false);
       }
@@ -62,17 +68,12 @@ const UsersPage = () => {
     setSelectedUser(null);
   };
 
-  const handleSortChange = (criteria: "name" | "role") => {
-    setSortCriteria(criteria);
-  };
-
   const handleSort = (a: User, b: User) => {
     if (sortCriteria === "name") {
       return a.name.localeCompare(b.name);
     } else if (sortCriteria === "role") {
       return a.role.localeCompare(b.role);
     }
-
     return 0;
   };
 
@@ -82,7 +83,11 @@ const UsersPage = () => {
     )
     .sort(handleSort);
 
-  if (status === "loading") {
+  const handleSortChange = (criteria: "name") => {
+    setSortCriteria(criteria);
+  };
+
+  if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <span className="loading loading-spinner loading-lg"></span>
@@ -90,16 +95,12 @@ const UsersPage = () => {
     );
   }
 
-  if (!isAuthenticated) {
-    return <SignIn />;
-  }
-
   return (
     <div className="flex justify-center items-start h-screen pt-20">
       <div className="w-full max-w-4xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
           <h1 className="text-lg font-semibold text-gray-900 mb-3">
-            User&nbsp;List
+            Client&nbsp;List
           </h1>
           <div className="flex gap-4 mb-3">
             <div className="dropdown">
@@ -120,16 +121,13 @@ const UsersPage = () => {
                 <li>
                   <a onClick={() => handleSortChange("name")}>Sort by Name</a>
                 </li>
-                <li>
-                  <a onClick={() => handleSortChange("role")}>Sort by Role</a>
-                </li>
               </ul>
             </div>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search Users..."
+              placeholder="Search Clients..."
               className="input rounded-full bg-gray-100 w-80 mb-3 shrink-0 focus:outline-none"
             />
           </div>
@@ -172,12 +170,10 @@ const UsersPage = () => {
             ))}
           </ul>
         ) : (
-          <div className="text-center text-gray-500 py-10">No User Found</div>
+          <div className="text-center text-gray-500 py-10">No Clients Found</div>
         )}
       </div>
       <UserModal ref={modalRef} user={selectedUser} closeModal={closeModal} />
     </div>
   );
-};
-
-export default UsersPage;
+}
